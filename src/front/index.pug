@@ -1,0 +1,16 @@
+doctype html
+html
+  head
+    title Your Markdown
+    link(href='./styles.sass' rel='stylesheet')
+    link(href='./fonts.css' rel='stylesheet')
+    link(rel='shortcut icon', href='favicon.png', type='image/x-icon') 
+  body
+    .cool-title
+      | Serving you <span id="adjective"></span> markdown <span id="file-name"></span>
+      | <br>
+      | Last file update <span id="file-update"></span>
+      | <br>
+      a(target="_blank", href="https://githbu.com/phytonmk/serv-md") Docs&amp;Help
+    #markdown
+    script(src='./main.coffee')
