@@ -15,3 +15,8 @@
   margin: auto;
   max-width: 600px;
   font-family: 'Roboto', 'sans-serif'; }
+  #markdown:empty {
+    padding-top: 100px; }
+    #markdown:empty:after {
+      content: 'Start edit your markdown with your favourite editor and see live reload of this ';
+      color: grey; }

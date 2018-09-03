@@ -1,5 +1,6 @@
 const mathToPicUrl = 'http://www.sciweavers.org/tex2img.php?bc=White&fc=Black&im=jpg&fs=12&ff=arev&eq='
 
+const portUsed = require('port-used')
 const opn = require('opn')
 const colors = require('colors')
 const path = require('path')
@@ -34,12 +35,65 @@ for (let i in process.argv) {
   }
 }
 
+var net = require('net');
+
+// const portInUse = (port) => new Promise((resolve, reject) => {
+//   console.log(`Checking if port ${port} not in use...`)
+//   const server = net.createServer((socket) => {
+//     socket.write('Echo server\r\n')
+//     socket.pipe(socket)
+//   })
+//   server.listen(port, 'localhost')
+//   server.on('error', (e) => {
+//     console.log(`Port ${port} in use`)
+//     resolve(true)
+//   });
+//   server.on('listening', (e) => {
+//     if (e) {
+//       console.log(`Port ${port} in use`)
+//       resolve(true)
+//     } else {
+//       console.log(`Port ${port} is free`)
+//       server.close()
+//       resolve(false)
+//     }
+//   });
+// })
+const isFreePort = port => new Promise((resolve, reject) => {
+  portUsed.check(port, 'localhost')
+    .then((inUse) => {
+      resolve(!inUse)
+      // console.log('Port 44201 usage: '+inUse);
+    }, (err) => {
+      reject()
+      // console.error('Error on check:', err.message);
+    });
+})
+
 const app = express()
-app.use('/', express.static(path.join(__dirname, '/../front-dist')))
 // app.get('/', (req, res) => res.end('hello'))
-app.listen(port, () => console.log(`\nserver started on `.yellow + `localhost:${port}`.underline.cyan))
-if (openBrowser)
-  opn(`http://localhost:${port}`)
+let wsServer;
+(async () => {
+  while (!await isFreePort(port)) {
+    port++
+  }
+  let wsPort = (port.toString() + '1') * 1
+  while (!await isFreePort(wsPort)) {
+    wsPort++
+  }
+  app.get('/port', (req, res) => {
+    res.send(wsPort.toString())
+    res.end()
+  })
+  app.use('/', express.static(path.join(__dirname, '/../front-dist')))
+  app.listen(port, () => console.log(`\nserver started on `.yellow + `localhost:${port}`.underline.cyan))
+  if (openBrowser)
+    opn(`http://localhost:${port}`)
+  wsServer = ws.createServer((connection) => {
+    connection.on("error", () => {})
+    update(connection)
+  }).listen(wsPort)
+})()
 
 if (fileName.length === 0) {
   process.exit()
@@ -48,13 +102,6 @@ if (fileName[0] !== '.')
   fileName = './' + fileName
 
 const baseName = path.basename(fileName)
-
-const server = ws.createServer((connection) => {
-  connection.on("error", () => {
-    //console.log("Connection closed")
-  })
-  update(connection)
-}).listen(11221)
 
 
 let fileTextToOverwrite = ''
@@ -72,16 +119,25 @@ setInterval(() => {
 }, 100)
 
 const update = async (forConnection=false) => {
+  if (!wsServer)
+    return
   const send = msg => {
     msg = JSON.stringify(msg)
     if (forConnection)
       forConnection.sendText(msg)
     else
-      server.connections.forEach((conn) => {
+      wsServer.connections.forEach((conn) => {
         conn.sendText(msg)
       })
   }
-  const markdownText = await fs.readFile(fileName, encoding)
+  let markdownText = ''
+  markdownText = await fs.readFile(fileName, encoding)
+    .catch((e) => {
+    })
+  if (markdownText === undefined) {
+    markdownText = ''
+    await fs.writeFile(fileName, markdownText, {encoding})
+  }
   const lines = markdownText.split(/\n/)
   let formulasPicturesInserting = false
   if (!noMath) {
@@ -92,7 +148,7 @@ const update = async (forConnection=false) => {
       }
     }
   }
-  const html = md.makeHtml(lines.join('\n'))
+  const html = markdownText !== '' ? md.makeHtml(lines.join('\n')) : ''
   // console.log(html)
   const msg = {
     type: 'html-update',

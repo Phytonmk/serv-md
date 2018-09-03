@@ -1,4 +1,13 @@
-url = "ws://localhost:11221"
+import axios from 'axios'
+
+wsPort = ''
+host = 'localhost'
+
+porRequest = axios.get(location.href + 'port')
+porRequest.catch (e) ->
+  console.log(e)
+porRequest.then (res) ->
+  wsPort = res.data
 
 adjectives = ['divine', 'famous', 'superb', 'magnificent', 'beautiful', 'great', 'delightful',
 'illustrious', 'adored', 'splendid', 'outstanding', 'heroic', 'sublime', 'wonderful', 'triumphant',
@@ -15,7 +24,8 @@ fileName = document.querySelector('#file-name')
 fileUpdate = document.querySelector('#file-update')
 connected = false
 setInterval ->
-  if !connected
+  if !connected && wsPort != ''
+    url = 'ws://' + host + ':' + wsPort
     socket = new WebSocket url
     socket.onopen = ->
       connected = true
